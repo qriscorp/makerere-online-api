@@ -1,0 +1,50 @@
+# OS files
+.DS_Store
+Thumbs.db
+
+# Server files
+.ftpquota
+.well-known/
+
+# Logs
+application/logs/*.php
+!application/logs/index.html
+
+# Cache
+application/cache/*.php
+!application/cache/index.html
+
+# Uploads (user-generated content, not code)
+uploads/student_data/
+uploads/teacher_data/
+uploads/homework/
+uploads/notes/
+uploads/books/
+uploads/old_paper/
+uploads/gallery/
+uploads/blog/
+
+# Keep upload directory structure
+!uploads/site_data/
+
+# Environment-specific config (credentials)
+# Uncomment these if you don't want credentials in the repo:
+# application/config/database.php
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# Dependencies / generated
+node_modules/
+vendor/
+
+# PDF examples (large binary files)
+application/third_party/mpdf/examples/*.pdf
+application/third_party/mpdf/tmp/
+
+# System cache
+system/cache/
+!system/cache/index.html

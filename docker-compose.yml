@@ -1,0 +1,50 @@
+version: '3.8'
+
+services:
+  app:
+    build: .
+    container_name: makerere-web
+    ports:
+      - "3434:80"
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DB_HOST=db
+      - DB_USER=eacademy_user
+      - DB_PASS=MakerereOnline2025!
+      - DB_NAME=eacademy_db
+    volumes:
+      - uploads_data:/var/www/html/uploads
+    restart: unless-stopped
+    networks:
+      - makerere-net
+
+  db:
+    image: mariadb:10.6
+    container_name: makerere-db
+    environment:
+      MYSQL_ROOT_PASSWORD: RootPass2025!
+      MYSQL_DATABASE: eacademy_db
+      MYSQL_USER: eacademy_user
+      MYSQL_PASSWORD: MakerereOnline2025!
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-schema.sql
+      - ./docker/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pRootPass2025!"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+    networks:
+      - makerere-net
+
+volumes:
+  db_data:
+  uploads_data:
+
+networks:
+  makerere-net:
+    driver: bridge

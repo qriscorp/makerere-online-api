@@ -1,9 +1,0 @@
-.DS_Store
-.git
-.gitignore
-docker-compose.yml
-docker/init.sql
-docker/seed.sql
-*.md
-.ftpquota
-application/logs/*.php

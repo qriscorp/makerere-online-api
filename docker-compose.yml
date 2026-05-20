@@ -1,48 +1,32 @@
 services:
-  app:
+  api:
     build: .
-    container_name: makerere-web
     ports:
-      - "3434:80"
+      - "3434:3434"
+    env_file:
+      - .env
     depends_on:
       db:
         condition: service_healthy
-    environment:
-      - DB_HOST=db
-      - DB_USER=eacademy_user
-      - DB_PASS=MakerereOnline2025!
-      - DB_NAME=eacademy_db
-    volumes:
-      - uploads_data:/var/www/html/uploads
     restart: unless-stopped
-    networks:
-      - makerere-net
+    command: ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "3434"]
 
   db:
-    image: mariadb:10.6
-    container_name: makerere-db
+    image: postgres:16-alpine
     environment:
-      MYSQL_ROOT_PASSWORD: RootPass2025!
-      MYSQL_DATABASE: eacademy_db
-      MYSQL_USER: eacademy_user
-      MYSQL_PASSWORD: MakerereOnline2025!
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: password
+      POSTGRES_DB: makerere_online
+    ports:
+      - "3435:5432"
     volumes:
-      - db_data:/var/lib/mysql
-      - ./docker/init.sql:/docker-entrypoint-initdb.d/01-schema.sql
-      - ./docker/seed.sql:/docker-entrypoint-initdb.d/02-seed.sql
+      - pgdata:/var/lib/postgresql/data
     healthcheck:
-      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-pRootPass2025!"]
+      test: ["CMD-SHELL", "pg_isready -U postgres"]
       interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 5
     restart: unless-stopped
-    networks:
-      - makerere-net
 
 volumes:
-  db_data:
-  uploads_data:
-
-networks:
-  makerere-net:
-    driver: bridge
+  pgdata:

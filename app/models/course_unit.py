@@ -15,7 +15,7 @@ class CourseUnit(Base):
     )
     title: Mapped[str] = mapped_column(String(300), nullable=False)
     description: Mapped[str] = mapped_column(Text, nullable=True, default="")
-    course_id: Mapped[str | None] = mapped_column(String, nullable=True)
+    course_id: Mapped[str | None] = mapped_column(String, nullable=True)  # Deprecated: use course_unit_links table instead
     lecturer_id: Mapped[str | None] = mapped_column(String, nullable=True)
     credit_hours: Mapped[int] = mapped_column(Integer, default=3)
     status: Mapped[str] = mapped_column(

@@ -8,6 +8,7 @@ from app.database import get_db
 from app.models.user import User
 from app.models.course import Course
 from app.models.course_unit import CourseUnit
+from app.models.course_unit_link import CourseUnitLink
 from app.schemas.course import CourseCreate, CourseUpdate, CourseResponse
 
 router = APIRouter(prefix="/api/courses", tags=["Courses"])
@@ -55,11 +56,11 @@ def create_course(
     db.commit()
     db.refresh(course)
 
-    # Link course units to this course
+    # Link course units via junction table
     if course_data.unit_ids:
-        db.query(CourseUnit).filter(CourseUnit.id.in_(course_data.unit_ids)).update(
-            {"course_id": course.id}, synchronize_session="fetch"
-        )
+        for unit_id in course_data.unit_ids:
+            link = CourseUnitLink(course_id=course.id, course_unit_id=unit_id)
+            db.add(link)
         db.commit()
 
     return course
@@ -87,8 +88,21 @@ def update_course(
         )
 
     update_data = course_data.model_dump(exclude_unset=True)
+
+    # Handle unit_ids separately via junction table
+    unit_ids = update_data.pop("unit_ids", None)
+
     for field, value in update_data.items():
         setattr(course, field, value)
+
+    # Update unit links if provided
+    if unit_ids is not None:
+        # Remove existing links for this course
+        db.query(CourseUnitLink).filter(CourseUnitLink.course_id == course_id).delete()
+        # Add new links
+        for unit_id in unit_ids:
+            link = CourseUnitLink(course_id=course_id, course_unit_id=unit_id)
+            db.add(link)
 
     db.commit()
     db.refresh(course)
@@ -118,3 +132,14 @@ def delete_course(
     db.delete(course)
     db.commit()
     return None
+
+
+@router.get("/{course_id}/units", response_model=List[str])
+def get_course_unit_ids(
+    course_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get all course unit IDs linked to a course."""
+    links = db.query(CourseUnitLink).filter(CourseUnitLink.course_id == course_id).all()
+    return [link.course_unit_id for link in links]

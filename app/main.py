@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.config import settings
-from app.routers import auth, users, schools, courses, course_units
+from app.routers import auth, users, schools, courses, course_units, intakes, intake_assignments
 from app.seed import seed_database
 
 app = FastAPI(
@@ -40,6 +40,8 @@ app.include_router(users.router)
 app.include_router(schools.router)
 app.include_router(courses.router)
 app.include_router(course_units.router)
+app.include_router(intakes.router)
+app.include_router(intake_assignments.router)
 
 
 @app.on_event("startup")

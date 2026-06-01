@@ -4,6 +4,7 @@ from app.models.user import User
 from app.models.school import School  # noqa: F401 — ensures schools table is created
 from app.models.course import Course  # noqa: F401 — ensures courses table is created
 from app.models.course_unit import CourseUnit  # noqa: F401 — ensures course_units table is created
+from app.models.intake import Intake  # noqa: F401 — ensures intakes table is created
 from app.auth import hash_password
 
 

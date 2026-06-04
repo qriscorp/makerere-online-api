@@ -5,3 +5,11 @@ from app.models.course_unit import CourseUnit  # noqa: F401
 from app.models.course_unit_link import CourseUnitLink  # noqa: F401
 from app.models.intake import Intake  # noqa: F401
 from app.models.intake_unit_assignment import IntakeUnitAssignment  # noqa: F401
+from app.models.system_setting import SystemSetting  # noqa: F401
+from app.models.study_material import StudyMaterial  # noqa: F401
+from app.models.assessment import Assessment  # noqa: F401
+from app.models.virtual_class import VirtualClass  # noqa: F401
+from app.models.tutor_profile import TutorProfile  # noqa: F401
+from app.models.subject import Subject  # noqa: F401
+from app.models.enrollment import Enrollment  # noqa: F401
+from app.models.tutoring_booking import TutoringBooking  # noqa: F401

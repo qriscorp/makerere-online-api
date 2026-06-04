@@ -13,6 +13,7 @@ class CourseCreate(BaseModel):
     fee: float = 0
     pass_mark: int = 50
     status: str = "active"
+    image_url: str | None = None
     unit_ids: List[str] = []  # Must have at least one course unit
 
     @field_validator("unit_ids")
@@ -32,6 +33,7 @@ class CourseUpdate(BaseModel):
     fee: float | None = None
     pass_mark: int | None = None
     status: str | None = None
+    image_url: str | None = None
     unit_ids: List[str] | None = None
 
 
@@ -45,6 +47,7 @@ class CourseResponse(BaseModel):
     fee: float
     pass_mark: int
     status: str
+    image_url: str | None = None
     created_at: datetime
 
     class Config:

@@ -21,6 +21,7 @@ class Course(Base):
     fee: Mapped[float] = mapped_column(Float, default=0)
     pass_mark: Mapped[int] = mapped_column(Integer, default=50)
     status: Mapped[str] = mapped_column(String(20), default="active")
+    image_url: Mapped[str | None] = mapped_column(String(500), nullable=True, default=None)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )

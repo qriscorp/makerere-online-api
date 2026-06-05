@@ -9,8 +9,8 @@ class IntakeCreate(BaseModel):
     year_level: int = 1
     start_date: date
     end_date: date
+    enrollment_deadline: date
     capacity: int = 100
-    fee: float = 0
     course_ids: List[str]
     status: str = "active"
 
@@ -28,14 +28,21 @@ class IntakeCreate(BaseModel):
             raise ValueError("End date must be after start date")
         return v
 
+    @field_validator("enrollment_deadline")
+    @classmethod
+    def deadline_before_end(cls, v, info):
+        if "end_date" in info.data and v > info.data["end_date"]:
+            raise ValueError("Enrollment deadline must be before or on the end date")
+        return v
+
 
 class IntakeUpdate(BaseModel):
     name: Optional[str] = None
     year_level: Optional[int] = None
     start_date: Optional[date] = None
     end_date: Optional[date] = None
+    enrollment_deadline: Optional[date] = None
     capacity: Optional[int] = None
-    fee: Optional[float] = None
     course_ids: Optional[List[str]] = None
     status: Optional[str] = None
 
@@ -46,9 +53,9 @@ class IntakeResponse(BaseModel):
     year_level: int
     start_date: date
     end_date: date
+    enrollment_deadline: date
     capacity: int
     enrolled_count: int
-    fee: float
     course_ids: List[str]
     status: str
     created_at: datetime

@@ -20,9 +20,9 @@ def _intake_to_response(intake: Intake) -> dict:
         "year_level": intake.year_level,
         "start_date": intake.start_date,
         "end_date": intake.end_date,
+        "enrollment_deadline": intake.enrollment_deadline,
         "capacity": intake.capacity,
         "enrolled_count": intake.enrolled_count,
-        "fee": intake.fee,
         "course_ids": [cid.strip() for cid in intake.course_ids.split(",") if cid.strip()] if intake.course_ids else [],
         "status": intake.status,
         "created_at": intake.created_at,
@@ -37,6 +37,21 @@ def list_intakes(
 ):
     """List all intakes. Any authenticated user can access."""
     intakes = db.query(Intake).order_by(Intake.created_at.desc()).all()
+    return [_intake_to_response(i) for i in intakes]
+
+
+@router.get("/public", response_model=List[IntakeResponse])
+def list_public_intakes(db: Session = Depends(get_db)):
+    """Public endpoint — list active intakes with open enrollment."""
+    from datetime import date as date_type
+    today = date_type.today()
+    intakes = (
+        db.query(Intake)
+        .filter(Intake.status == "active")
+        .filter(Intake.enrollment_deadline >= today)
+        .order_by(Intake.start_date.asc())
+        .all()
+    )
     return [_intake_to_response(i) for i in intakes]
 
 
@@ -58,8 +73,8 @@ def create_intake(
         year_level=intake_data.year_level,
         start_date=intake_data.start_date,
         end_date=intake_data.end_date,
+        enrollment_deadline=intake_data.enrollment_deadline,
         capacity=intake_data.capacity,
-        fee=intake_data.fee,
         course_ids=",".join(intake_data.course_ids),
         status=intake_data.status,
     )

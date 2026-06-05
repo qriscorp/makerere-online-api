@@ -18,6 +18,7 @@ class TutorProfileResponse(BaseModel):
     hourly_rate: float
     bio: str
     is_available: bool
+    approval_status: str = "pending"
 
     class Config:
         from_attributes = True
@@ -30,6 +31,19 @@ class TutorPublicResponse(BaseModel):
     hourly_rate: float
     bio: str
     is_available: bool
+
+
+class TutorAdminResponse(BaseModel):
+    """Response for admin view — includes user name and approval status."""
+    id: str
+    user_id: str
+    name: str
+    subjects: List[str]
+    hourly_rate: float
+    bio: str
+    is_available: bool
+    approval_status: str
+    created_at: Optional[str] = None
 
 
 class TutoringBookingCreate(BaseModel):

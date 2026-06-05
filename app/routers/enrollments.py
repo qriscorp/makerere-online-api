@@ -8,6 +8,8 @@ from app.database import get_db
 from app.models.user import User
 from app.models.enrollment import Enrollment
 from app.models.intake import Intake
+from app.models.course_unit_link import CourseUnitLink
+from app.models.student_unit_enrollment import StudentUnitEnrollment
 from app.schemas.enrollment import EnrollmentCreate, EnrollmentResponse
 
 router = APIRouter(prefix="/api/enrollments", tags=["Enrollments"])
@@ -52,6 +54,15 @@ def create_enrollment(
             detail="Intake not found",
         )
 
+    # Check enrollment deadline
+    from datetime import date as date_type
+    today = date_type.today()
+    if intake.enrollment_deadline and today > intake.enrollment_deadline:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Enrollment deadline has passed for this intake",
+        )
+
     # Check capacity
     if intake.enrolled_count >= intake.capacity:
         raise HTTPException(
@@ -84,6 +95,25 @@ def create_enrollment(
         payment_status="pending",
     )
     db.add(enrollment)
+    db.flush()  # Get the enrollment ID before committing
+
+    # Auto-enroll student in all course units linked to this course
+    course_unit_links = (
+        db.query(CourseUnitLink)
+        .filter(CourseUnitLink.course_id == data.course_id)
+        .all()
+    )
+    for link in course_unit_links:
+        unit_enrollment = StudentUnitEnrollment(
+            student_id=current_user.id,
+            enrollment_id=enrollment.id,
+            course_unit_id=link.course_unit_id,
+            course_id=data.course_id,
+            intake_id=data.intake_id,
+            status="active",
+        )
+        db.add(unit_enrollment)
+
     db.commit()
     db.refresh(enrollment)
     return enrollment
@@ -155,5 +185,41 @@ def delete_enrollment(
         if intake and intake.enrolled_count > 0:
             intake.enrolled_count = intake.enrolled_count - 1
 
+    # Also delete associated unit enrollments
+    db.query(StudentUnitEnrollment).filter(
+        StudentUnitEnrollment.enrollment_id == enrollment_id
+    ).delete()
+
     db.delete(enrollment)
     db.commit()
+
+
+@router.get("/my-units", response_model=List[dict])
+def get_my_unit_enrollments(
+    course_id: str = None,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get student's enrolled course units. Optionally filter by course_id."""
+    query = db.query(StudentUnitEnrollment).filter(
+        StudentUnitEnrollment.student_id == current_user.id
+    )
+    if course_id:
+        query = query.filter(StudentUnitEnrollment.course_id == course_id)
+
+    unit_enrollments = query.order_by(StudentUnitEnrollment.created_at.desc()).all()
+
+    return [
+        {
+            "id": ue.id,
+            "student_id": ue.student_id,
+            "enrollment_id": ue.enrollment_id,
+            "course_unit_id": ue.course_unit_id,
+            "course_id": ue.course_id,
+            "intake_id": ue.intake_id,
+            "status": ue.status,
+            "enrolled_date": str(ue.enrolled_date),
+            "created_at": str(ue.created_at),
+        }
+        for ue in unit_enrollments
+    ]

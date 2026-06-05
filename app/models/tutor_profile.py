@@ -18,6 +18,8 @@ class TutorProfile(Base):
     hourly_rate: Mapped[float] = mapped_column(Float, default=50000)
     bio: Mapped[str] = mapped_column(Text, default="")
     is_available: Mapped[bool] = mapped_column(Boolean, default=True)
+    # approval_status: "pending", "approved", "rejected"
+    approval_status: Mapped[str] = mapped_column(String, default="pending", nullable=False)
     created_at: Mapped[datetime] = mapped_column(
         DateTime, default=datetime.utcnow, nullable=False
     )

@@ -29,6 +29,18 @@ def list_courses(
     return courses
 
 
+@router.get("/public", response_model=List[CourseResponse])
+def list_public_courses(db: Session = Depends(get_db)):
+    """Public endpoint — list all active courses."""
+    courses = (
+        db.query(Course)
+        .filter(Course.status == "active")
+        .order_by(Course.created_at.desc())
+        .all()
+    )
+    return courses
+
+
 @router.post("", response_model=CourseResponse, status_code=status.HTTP_201_CREATED)
 def create_course(
     course_data: CourseCreate,

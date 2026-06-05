@@ -14,17 +14,51 @@ router = APIRouter(prefix="/api/materials", tags=["Study Materials"])
 
 @router.get("", response_model=List[StudyMaterialResponse])
 def list_materials(
-    course_unit_id: str = Query(..., description="Filter by course unit ID"),
+    course_unit_id: str = Query(None, description="Filter by course unit ID"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List study materials for a course unit. Any authenticated user can access."""
-    materials = (
-        db.query(StudyMaterial)
-        .filter(StudyMaterial.course_unit_id == course_unit_id)
-        .order_by(StudyMaterial.created_at.desc())
-        .all()
-    )
+    """List study materials. Filter by course_unit_id, or get all for lecturer/student."""
+    if course_unit_id:
+        materials = (
+            db.query(StudyMaterial)
+            .filter(StudyMaterial.course_unit_id == course_unit_id)
+            .order_by(StudyMaterial.created_at.desc())
+            .all()
+        )
+    elif current_user.role == "lecturer":
+        # Return all materials uploaded by this lecturer
+        materials = (
+            db.query(StudyMaterial)
+            .filter(StudyMaterial.uploaded_by == current_user.id)
+            .order_by(StudyMaterial.created_at.desc())
+            .all()
+        )
+    elif current_user.role in ("super_admin", "admin"):
+        materials = (
+            db.query(StudyMaterial)
+            .order_by(StudyMaterial.created_at.desc())
+            .all()
+        )
+    else:
+        # Student: return materials for their enrolled course units
+        from app.models.student_unit_enrollment import StudentUnitEnrollment
+        unit_enrollments = (
+            db.query(StudentUnitEnrollment.course_unit_id)
+            .filter(StudentUnitEnrollment.student_id == current_user.id)
+            .all()
+        )
+        enrolled_unit_ids = [ue[0] for ue in unit_enrollments]
+        if enrolled_unit_ids:
+            materials = (
+                db.query(StudyMaterial)
+                .filter(StudyMaterial.course_unit_id.in_(enrolled_unit_ids))
+                .order_by(StudyMaterial.created_at.desc())
+                .all()
+            )
+        else:
+            materials = []
+
     return materials
 
 

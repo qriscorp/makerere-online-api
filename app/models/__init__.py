@@ -17,3 +17,4 @@ from app.models.student_unit_enrollment import StudentUnitEnrollment  # noqa: F4
 from app.models.assessment_question import AssessmentQuestion  # noqa: F401
 from app.models.assessment_submission import AssessmentSubmission  # noqa: F401
 from app.models.payment import Payment  # noqa: F401
+from app.models.certificate import Certificate  # noqa: F401

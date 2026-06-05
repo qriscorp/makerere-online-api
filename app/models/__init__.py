@@ -14,3 +14,6 @@ from app.models.subject import Subject  # noqa: F401
 from app.models.enrollment import Enrollment  # noqa: F401
 from app.models.tutoring_booking import TutoringBooking  # noqa: F401
 from app.models.student_unit_enrollment import StudentUnitEnrollment  # noqa: F401
+from app.models.assessment_question import AssessmentQuestion  # noqa: F401
+from app.models.assessment_submission import AssessmentSubmission  # noqa: F401
+from app.models.payment import Payment  # noqa: F401

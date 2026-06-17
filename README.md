@@ -30,6 +30,17 @@ docker compose up --build -d
 API available at `http://localhost:3434`
 Docs at `http://localhost:3434/docs`
 
+On startup, the API seeds sample data (if not already present):
+
+| Entity | Count | Examples |
+|--------|-------|----------|
+| Schools | 2 | School of Computing and Informatics (SCI), School of Business and Management (SBM) |
+| Courses | 2 | BSc Computer Science, BBA |
+| Course units | 2 | Data Structures and Algorithms, Principles of Management |
+| Intakes | 2 | August 2026 Intake, January 2027 Intake |
+
+Seed logic lives in `app/seed.py` and is idempotent (safe to restart).
+
 ### Local Development
 
 ```bash

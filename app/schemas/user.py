@@ -23,6 +23,16 @@ class UserLogin(BaseModel):
     password: str
 
 
+class ProfileUpdate(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+
+
+class PasswordChange(BaseModel):
+    current_password: str
+    new_password: str
+
+
 class UserResponse(BaseModel):
     id: str
     name: str

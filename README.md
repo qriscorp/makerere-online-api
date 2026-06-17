@@ -4,15 +4,31 @@ FastAPI backend for the Makerere Online University Management System.
 
 ## Quick Start
 
-### With Docker (recommended)
+### Full stack (API + DB + Dashboard)
+
+From the project root (`makerere project/`):
 
 ```bash
+docker compose up --build -d
+```
+
+| Service    | URL                          |
+|------------|------------------------------|
+| Dashboard  | http://localhost:3535        |
+| API        | http://localhost:3434        |
+| API docs   | http://localhost:3434/docs   |
+| Postgres   | localhost:3435               |
+
+### API only
+
+```bash
+cd makerere-online-api
 cp .env.example .env
 docker compose up --build -d
 ```
 
-API available at `http://localhost:8000`
-Docs at `http://localhost:8000/docs`
+API available at `http://localhost:3434`
+Docs at `http://localhost:3434/docs`
 
 ### Local Development
 

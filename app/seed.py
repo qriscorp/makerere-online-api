@@ -1,4 +1,5 @@
 """Seed the database with initial users, settings, and sample academic data on startup."""
+import json
 from datetime import date, datetime
 
 from app.database import SessionLocal, engine, Base
@@ -13,6 +14,10 @@ from app.models.student_unit_enrollment import StudentUnitEnrollment
 from app.models.tutor_profile import TutorProfile
 from app.models.payment import Payment
 from app.models.system_setting import SystemSetting
+from app.models.study_material import StudyMaterial
+from app.models.assessment import Assessment
+from app.models.assessment_question import AssessmentQuestion
+from app.models.virtual_class import VirtualClass
 from app.auth import hash_password
 
 
@@ -218,6 +223,236 @@ SEED_PAYMENTS = [
 ]
 
 
+SEED_STUDY_MATERIALS = [
+    {
+        "unit_title": "Data Structures and Algorithms",
+        "title": "Lecture Notes — Introduction to Arrays",
+        "description": "Week 1 lecture notes covering arrays, linked lists, and basic complexity analysis.",
+        "type": "pdf",
+        "file_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        "file_size": 13264,
+        "lecturer_email": "firstlecturer@makonline.com",
+    },
+    {
+        "unit_title": "Data Structures and Algorithms",
+        "title": "Sorting Algorithms — Video Lecture",
+        "description": "Recorded lecture on bubble sort, merge sort, and quicksort.",
+        "type": "video",
+        "file_url": "https://www.youtube.com/watch?v=kf6lAYz9iZE",
+        "file_size": 0,
+        "lecturer_email": "firstlecturer@makonline.com",
+    },
+    {
+        "unit_title": "Principles of Management",
+        "title": "Management Theory Slides",
+        "description": "Presentation slides for classical and modern management theories.",
+        "type": "presentation",
+        "file_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        "file_size": 13264,
+        "lecturer_email": "firstlecturer@makonline.com",
+    },
+    {
+        "unit_title": "Principles of Management",
+        "title": "Case Study — Organisational Behaviour",
+        "description": "Reading assignment on leadership styles in Ugandan SMEs.",
+        "type": "assignment",
+        "file_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+        "file_size": 13264,
+        "lecturer_email": "firstlecturer@makonline.com",
+    },
+]
+
+SEED_ASSESSMENTS = [
+    {
+        "unit_title": "Data Structures and Algorithms",
+        "title": "Mid-Semester Quiz — Data Structures",
+        "type": "quiz",
+        "pass_mark": 50,
+        "time_limit": 45,
+        "max_attempts": 2,
+        "start_date": date(2026, 6, 1),
+        "end_date": date(2026, 12, 31),
+        "instructions": "Answer all questions within the 45-minute time limit.",
+        "lecturer_email": "firstlecturer@makonline.com",
+    },
+    {
+        "unit_title": "Data Structures and Algorithms",
+        "title": "Programming Assignment — Linked Lists",
+        "type": "assignment",
+        "pass_mark": 50,
+        "time_limit": None,
+        "max_attempts": 1,
+        "start_date": date(2026, 6, 1),
+        "end_date": date(2026, 11, 30),
+        "instructions": "Implement a singly linked list with insert, delete, and search operations.",
+        "lecturer_email": "firstlecturer@makonline.com",
+    },
+    {
+        "unit_title": "Principles of Management",
+        "title": "Quiz — Management Fundamentals",
+        "type": "quiz",
+        "pass_mark": 50,
+        "time_limit": 30,
+        "max_attempts": 2,
+        "start_date": date(2026, 6, 1),
+        "end_date": date(2026, 12, 31),
+        "instructions": "Complete all multiple-choice questions.",
+        "lecturer_email": "firstlecturer@makonline.com",
+    },
+    {
+        "unit_title": "Principles of Management",
+        "title": "Final Exam — Principles of Management",
+        "type": "final_exam",
+        "pass_mark": 50,
+        "time_limit": 120,
+        "max_attempts": 1,
+        "start_date": date(2026, 11, 1),
+        "end_date": date(2026, 12, 15),
+        "instructions": "Comprehensive final examination covering all course topics.",
+        "lecturer_email": "firstlecturer@makonline.com",
+    },
+]
+
+SEED_VIRTUAL_CLASSES = [
+    {
+        "unit_title": "Data Structures and Algorithms",
+        "title": "Live Session — Binary Trees",
+        "date": date(2026, 7, 10),
+        "start_time": "10:00",
+        "duration": 90,
+        "platform": "zoom",
+        "meeting_link": "https://zoom.us/j/seed-dsa-binary-trees",
+        "lecturer_email": "firstlecturer@makonline.com",
+        "is_live": False,
+    },
+    {
+        "unit_title": "Data Structures and Algorithms",
+        "title": "Recap — Sorting Algorithms",
+        "date": date(2026, 4, 15),
+        "start_time": "14:00",
+        "duration": 60,
+        "platform": "jitsi",
+        "meeting_link": "https://meet.jit.si/mak-dsa-sorting-recap",
+        "lecturer_email": "firstlecturer@makonline.com",
+        "is_live": False,
+    },
+    {
+        "unit_title": "Principles of Management",
+        "title": "Live Class — Leadership Styles",
+        "date": date(2026, 8, 5),
+        "start_time": "09:00",
+        "duration": 75,
+        "platform": "zoom",
+        "meeting_link": "https://zoom.us/j/seed-mgmt-leadership",
+        "lecturer_email": "firstlecturer@makonline.com",
+        "is_live": False,
+    },
+    {
+        "unit_title": "Principles of Management",
+        "title": "Guest Lecture — Entrepreneurship",
+        "date": date(2026, 3, 20),
+        "start_time": "11:00",
+        "duration": 60,
+        "platform": "jitsi",
+        "meeting_link": "https://meet.jit.si/mak-mgmt-entrepreneurship",
+        "lecturer_email": "firstlecturer@makonline.com",
+        "is_live": False,
+    },
+]
+
+SEED_ASSESSMENT_QUESTIONS = [
+    {
+        "assessment_title": "Mid-Semester Quiz — Data Structures",
+        "unit_title": "Data Structures and Algorithms",
+        "questions": [
+            {
+                "question_text": "What is the average time complexity of binary search?",
+                "question_type": "mcq",
+                "options": ["O(n)", "O(log n)", "O(n²)", "O(1)"],
+                "correct_answer": "O(log n)",
+                "marks": 5,
+                "order": 1,
+            },
+            {
+                "question_text": "Which data structure uses FIFO ordering?",
+                "question_type": "mcq",
+                "options": ["Stack", "Queue", "Tree", "Graph"],
+                "correct_answer": "Queue",
+                "marks": 5,
+                "order": 2,
+            },
+            {
+                "question_text": "Explain the difference between an array and a linked list.",
+                "question_type": "essay",
+                "options": [],
+                "correct_answer": "",
+                "marks": 10,
+                "order": 3,
+            },
+        ],
+    },
+    {
+        "assessment_title": "Quiz — Management Fundamentals",
+        "unit_title": "Principles of Management",
+        "questions": [
+            {
+                "question_text": "Who is known as the father of scientific management?",
+                "question_type": "mcq",
+                "options": ["Henry Fayol", "Frederick Taylor", "Max Weber", "Peter Drucker"],
+                "correct_answer": "Frederick Taylor",
+                "marks": 5,
+                "order": 1,
+            },
+            {
+                "question_text": "What does SWOT stand for in strategic planning?",
+                "question_type": "mcq",
+                "options": [
+                    "Strengths, Weaknesses, Opportunities, Threats",
+                    "Systems, Work, Operations, Tasks",
+                    "Sales, Workforce, Output, Targets",
+                    "Strategy, Workflow, Objectives, Tactics",
+                ],
+                "correct_answer": "Strengths, Weaknesses, Opportunities, Threats",
+                "marks": 5,
+                "order": 2,
+            },
+        ],
+    },
+]
+
+
+def _ensure_unit_enrollments(db, enrollment: Enrollment, course: Course) -> None:
+    links = (
+        db.query(CourseUnitLink)
+        .filter(CourseUnitLink.course_id == course.id)
+        .all()
+    )
+    for link in links:
+        exists = (
+            db.query(StudentUnitEnrollment)
+            .filter(
+                StudentUnitEnrollment.student_id == enrollment.student_id,
+                StudentUnitEnrollment.course_unit_id == link.course_unit_id,
+            )
+            .first()
+        )
+        if exists:
+            continue
+        db.add(
+            StudentUnitEnrollment(
+                student_id=enrollment.student_id,
+                enrollment_id=enrollment.id,
+                course_unit_id=link.course_unit_id,
+                course_id=course.id,
+                intake_id=enrollment.intake_id,
+                status="active",
+            )
+        )
+        print(
+            f"    Linked unit enrollment: student → unit {link.course_unit_id}"
+        )
+
+
 def _seed_schools(db) -> dict[str, School]:
     schools_by_code: dict[str, School] = {}
     for data in SEED_SCHOOLS:
@@ -247,6 +482,13 @@ def _seed_courses(db, schools_by_code: dict[str, School]) -> dict[str, Course]:
             .first()
         )
         if existing:
+            # Clear external placeholder URLs so the dashboard uses bundled app images
+            if existing.image_url and (
+                "unsplash.com" in existing.image_url
+                or existing.image_url.startswith("http")
+            ):
+                existing.image_url = None
+                print(f"  Cleared external course image: {existing.title}")
             courses_by_title[existing.title] = existing
             print(f"  Course exists: {existing.title}")
             continue
@@ -259,6 +501,7 @@ def _seed_courses(db, schools_by_code: dict[str, School]) -> dict[str, Course]:
             fee=data["fee"],
             pass_mark=data["pass_mark"],
             status=data["status"],
+            image_url=None,
         )
         db.add(course)
         db.flush()
@@ -369,6 +612,8 @@ def _seed_enrollments(
         if existing:
             enrollments_by_key[key] = existing
             print(f"  Enrollment exists: {data['student_email']} → {data['course_title']}")
+            if data["status"] == "active":
+                _ensure_unit_enrollments(db, existing, course)
             continue
 
         enrollment = Enrollment(
@@ -489,6 +734,173 @@ def _intakes_by_name(db) -> dict[str, Intake]:
     return {i.name: i for i in db.query(Intake).all()}
 
 
+def _seed_study_materials(
+    db,
+    units_by_title: dict[str, CourseUnit],
+) -> None:
+    for data in SEED_STUDY_MATERIALS:
+        unit = units_by_title.get(data["unit_title"])
+        lecturer = db.query(User).filter(User.email == data["lecturer_email"]).first()
+        if not unit or not lecturer:
+            print(f"  Skipped material (missing refs): {data['title']}")
+            continue
+
+        existing = (
+            db.query(StudyMaterial)
+            .filter(
+                StudyMaterial.course_unit_id == unit.id,
+                StudyMaterial.title == data["title"],
+            )
+            .first()
+        )
+        if existing:
+            print(f"  Material exists: {data['title']}")
+            continue
+
+        material = StudyMaterial(
+            course_unit_id=unit.id,
+            title=data["title"],
+            description=data["description"],
+            type=data["type"],
+            file_url=data["file_url"],
+            file_size=data["file_size"],
+            uploaded_by=lecturer.id,
+        )
+        db.add(material)
+        print(f"  Created material: {data['title']}")
+
+
+def _seed_assessments(
+    db,
+    units_by_title: dict[str, CourseUnit],
+) -> dict[str, Assessment]:
+    assessments_by_key: dict[str, Assessment] = {}
+
+    for data in SEED_ASSESSMENTS:
+        unit = units_by_title.get(data["unit_title"])
+        lecturer = db.query(User).filter(User.email == data["lecturer_email"]).first()
+        if not unit or not lecturer:
+            print(f"  Skipped assessment (missing refs): {data['title']}")
+            continue
+
+        existing = (
+            db.query(Assessment)
+            .filter(
+                Assessment.course_unit_id == unit.id,
+                Assessment.title == data["title"],
+            )
+            .first()
+        )
+        if existing:
+            assessments_by_key[f"{data['unit_title']}::{data['title']}"] = existing
+            print(f"  Assessment exists: {data['title']}")
+            continue
+
+        assessment = Assessment(
+            course_unit_id=unit.id,
+            title=data["title"],
+            type=data["type"],
+            pass_mark=data["pass_mark"],
+            time_limit=data["time_limit"],
+            max_attempts=data["max_attempts"],
+            start_date=data["start_date"],
+            end_date=data["end_date"],
+            instructions=data["instructions"],
+            created_by=lecturer.id,
+        )
+        db.add(assessment)
+        db.flush()
+        assessments_by_key[f"{data['unit_title']}::{data['title']}"] = assessment
+        print(f"  Created assessment: {data['title']}")
+
+    return assessments_by_key
+
+
+def _seed_virtual_classes(
+    db,
+    units_by_title: dict[str, CourseUnit],
+) -> None:
+    for data in SEED_VIRTUAL_CLASSES:
+        unit = units_by_title.get(data["unit_title"])
+        lecturer = db.query(User).filter(User.email == data["lecturer_email"]).first()
+        if not unit or not lecturer:
+            print(f"  Skipped virtual class (missing refs): {data['title']}")
+            continue
+
+        existing = (
+            db.query(VirtualClass)
+            .filter(
+                VirtualClass.course_unit_id == unit.id,
+                VirtualClass.title == data["title"],
+            )
+            .first()
+        )
+        if existing:
+            print(f"  Virtual class exists: {data['title']}")
+            continue
+
+        virtual_class = VirtualClass(
+            course_unit_id=unit.id,
+            title=data["title"],
+            date=data["date"],
+            start_time=data["start_time"],
+            duration=data["duration"],
+            platform=data["platform"],
+            meeting_link=data["meeting_link"],
+            is_live=data["is_live"],
+            lecturer_id=lecturer.id,
+        )
+        db.add(virtual_class)
+        print(f"  Created virtual class: {data['title']}")
+
+
+def _seed_assessment_questions(
+    db,
+    assessments_by_key: dict[str, Assessment],
+) -> None:
+    for data in SEED_ASSESSMENT_QUESTIONS:
+        key = f"{data['unit_title']}::{data['assessment_title']}"
+        assessment = assessments_by_key.get(key)
+        if not assessment:
+            assessment = (
+                db.query(Assessment)
+                .join(CourseUnit, CourseUnit.id == Assessment.course_unit_id)
+                .filter(
+                    Assessment.title == data["assessment_title"],
+                    CourseUnit.title == data["unit_title"],
+                )
+                .first()
+            )
+        if not assessment:
+            print(f"  Skipped questions (assessment missing): {data['assessment_title']}")
+            continue
+
+        for q in data["questions"]:
+            existing = (
+                db.query(AssessmentQuestion)
+                .filter(
+                    AssessmentQuestion.assessment_id == assessment.id,
+                    AssessmentQuestion.question_text == q["question_text"],
+                )
+                .first()
+            )
+            if existing:
+                continue
+
+            db.add(
+                AssessmentQuestion(
+                    assessment_id=assessment.id,
+                    question_text=q["question_text"],
+                    question_type=q["question_type"],
+                    options=json.dumps(q["options"]),
+                    correct_answer=q["correct_answer"],
+                    marks=q["marks"],
+                    order=q["order"],
+                )
+            )
+        print(f"  Seeded questions for: {data['assessment_title']}")
+
+
 def seed_database():
     """Create tables and seed initial users and settings if they don't exist."""
     Base.metadata.create_all(bind=engine)
@@ -522,13 +934,18 @@ def seed_database():
 
         schools_by_code = _seed_schools(db)
         courses_by_title = _seed_courses(db, schools_by_code)
-        _seed_course_units(db, courses_by_title)
+        units_by_title = _seed_course_units(db, courses_by_title)
         _seed_intakes(db, courses_by_title)
 
         intakes_by_name = _intakes_by_name(db)
         enrollments_by_key = _seed_enrollments(db, intakes_by_name, courses_by_title)
         _seed_tutor_profiles(db)
         _seed_payments(db, enrollments_by_key)
+
+        _seed_study_materials(db, units_by_title)
+        assessments_by_key = _seed_assessments(db, units_by_title)
+        _seed_virtual_classes(db, units_by_title)
+        _seed_assessment_questions(db, assessments_by_key)
 
         db.commit()
         print("Database seeded successfully.")

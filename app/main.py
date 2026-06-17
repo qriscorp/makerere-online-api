@@ -7,7 +7,7 @@ from app.config import settings
 from app.routers import auth, users, schools, courses, course_units, intakes, intake_assignments
 from app.routers import settings as settings_router
 from app.routers import materials, assessments, virtual_classes, tutoring, subjects, enrollments, uploads, assessment_questions, payments
-from app.routers import certificates
+from app.routers import certificates, notifications, dashboard
 from app.seed import seed_database
 
 app = FastAPI(
@@ -58,6 +58,8 @@ app.include_router(uploads.router)
 app.include_router(assessment_questions.router)
 app.include_router(payments.router)
 app.include_router(certificates.router)
+app.include_router(notifications.router)
+app.include_router(dashboard.router)
 
 # Mount static files for uploaded images
 UPLOAD_DIR = "/app/uploads"

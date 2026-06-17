@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 from app.auth import get_current_user, hash_password
 from app.database import get_db
 from app.models.user import User
-from app.schemas.user import UserCreate, UserResponse
+from app.schemas.user import UserCreate, UserResponse, UserUpdate
 
 router = APIRouter(prefix="/api/users", tags=["Users"])
 
@@ -61,6 +61,69 @@ def create_user(
         role=user_data.role.value,
     )
     db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+@router.patch("/{user_id}", response_model=UserResponse)
+def update_user(
+    user_id: str,
+    data: UserUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update a user. super_admin can update any user; admin cannot assign super_admin."""
+    if current_user.role not in ("super_admin", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="User not found",
+        )
+
+    if data.name is not None:
+        name = data.name.strip()
+        if not name:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Name cannot be empty",
+            )
+        user.name = name
+
+    if data.email is not None:
+        email = str(data.email).strip().lower()
+        existing = (
+            db.query(User)
+            .filter(User.email == email, User.id != user.id)
+            .first()
+        )
+        if existing:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Email already registered",
+            )
+        user.email = email
+
+    if data.role is not None:
+        if current_user.role == "admin" and data.role.value == "super_admin":
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="Admins cannot assign super_admin role",
+            )
+        user.role = data.role.value
+
+    if data.name is None and data.email is None and data.role is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update",
+        )
+
     db.commit()
     db.refresh(user)
     return user

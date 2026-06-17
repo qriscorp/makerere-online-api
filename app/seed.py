@@ -1,6 +1,6 @@
 """Seed the database with initial users, settings, and sample academic data on startup."""
 import json
-from datetime import date, datetime
+from datetime import date, datetime, timedelta
 
 from app.database import SessionLocal, engine, Base
 from app.models.user import User
@@ -19,6 +19,7 @@ from app.models.assessment import Assessment
 from app.models.assessment_question import AssessmentQuestion
 from app.models.virtual_class import VirtualClass
 from app.models.certificate import Certificate
+from app.models.notification import Notification
 from app.auth import hash_password
 
 
@@ -438,6 +439,74 @@ SEED_CERTIFICATES = [
         "certificate_number": "MAK-2026-BSCS1",
         "issue_date": date(2026, 6, 10),
         "status": "active",
+    },
+]
+
+
+SEED_NOTIFICATIONS = [
+    {
+        "user_email": "polarismosh@gmail.com",
+        "title": "Enrollment Confirmed",
+        "message": "Your enrollment in BSc Computer Science (Jan 2026 Intake) has been confirmed.",
+        "category": "enrollment",
+        "is_read": True,
+        "link_to": "/dashboard/enrollment",
+    },
+    {
+        "user_email": "polarismosh@gmail.com",
+        "title": "Payment Received",
+        "message": "Payment of UGX 4,500,000 for BSc Computer Science has been received successfully.",
+        "category": "payment",
+        "is_read": True,
+        "link_to": "/dashboard/payments",
+    },
+    {
+        "user_email": "polarismosh@gmail.com",
+        "title": "Upcoming Live Class",
+        "message": "Data Structures - Binary Trees starts soon. Join via Zoom.",
+        "category": "class",
+        "is_read": False,
+        "link_to": "/dashboard/virtual-learning",
+    },
+    {
+        "user_email": "polarismosh@gmail.com",
+        "title": "Exam Deadline Approaching",
+        "message": "Data Structures Mid-Semester Quiz is due soon. Don't forget to submit.",
+        "category": "exam",
+        "is_read": False,
+        "link_to": "/dashboard/examinations",
+    },
+    {
+        "user_email": "secondstudent@makonline.com",
+        "title": "Exam Result Available",
+        "message": "Your result for Data Structures Mid-Semester Quiz is now available.",
+        "category": "exam",
+        "is_read": False,
+        "link_to": "/dashboard/examinations",
+    },
+    {
+        "user_email": "firstlecturer@makonline.com",
+        "title": "New Submission",
+        "message": "A student submitted Programming Assignment — Linked Lists.",
+        "category": "exam",
+        "is_read": False,
+        "link_to": "/dashboard/examinations",
+    },
+    {
+        "user_email": "firstlecturer@makonline.com",
+        "title": "Class Reminder",
+        "message": "Your class 'Live Session — Binary Trees' is scheduled soon.",
+        "category": "class",
+        "is_read": False,
+        "link_to": "/dashboard/virtual-learning",
+    },
+    {
+        "user_email": "admin@makonline.com",
+        "title": "Payment Pending",
+        "message": "A student payment for BSc Civil Engineering is still pending review.",
+        "category": "payment",
+        "is_read": False,
+        "link_to": "/dashboard/payments",
     },
 ]
 
@@ -969,6 +1038,82 @@ def _seed_certificates(
         print(f"  Created certificate: {data['certificate_number']} → {student.email}")
 
 
+def _seed_notifications(db) -> None:
+    for data in SEED_NOTIFICATIONS:
+        user = db.query(User).filter(User.email == data["user_email"]).first()
+        if not user:
+            print(f"  Skipped notification (user missing): {data['title']}")
+            continue
+
+        existing = (
+            db.query(Notification)
+            .filter(
+                Notification.user_id == user.id,
+                Notification.title == data["title"],
+            )
+            .first()
+        )
+        if existing:
+            print(f"  Notification exists: {data['title']} → {user.email}")
+            continue
+
+        notification = Notification(
+            user_id=user.id,
+            title=data["title"],
+            message=data["message"],
+            category=data["category"],
+            is_read=data["is_read"],
+            link_to=data.get("link_to"),
+        )
+        db.add(notification)
+        print(f"  Created notification: {data['title']} → {user.email}")
+
+
+def _seed_upcoming_alert_demo(db, units_by_title: dict[str, CourseUnit]) -> None:
+    """Keep one exam deadline and one live class in alert windows for student demos."""
+    quiz = (
+        db.query(Assessment)
+        .filter(Assessment.title == "Mid-Semester Quiz — Data Structures")
+        .first()
+    )
+    if quiz:
+        quiz.end_date = date.today()
+
+    unit = units_by_title.get("Data Structures and Algorithms")
+    lecturer = db.query(User).filter(User.email == "firstlecturer@makonline.com").first()
+    if not unit or not lecturer:
+        return
+
+    demo_title = "Demo — Live Class Starting Soon"
+    start_at = datetime.utcnow() + timedelta(minutes=12)
+    existing = (
+        db.query(VirtualClass)
+        .filter(VirtualClass.title == demo_title)
+        .first()
+    )
+    if existing:
+        existing.date = start_at.date()
+        existing.start_time = start_at.strftime("%H:%M")
+        existing.course_unit_id = unit.id
+        existing.lecturer_id = lecturer.id
+        print(f"  Updated demo upcoming class: {demo_title}")
+        return
+
+    virtual_class = VirtualClass(
+        course_unit_id=unit.id,
+        title=demo_title,
+        date=start_at.date(),
+        start_time=start_at.strftime("%H:%M"),
+        duration=60,
+        platform="zoom",
+        meeting_link="https://zoom.us/j/mak-demo-upcoming-class",
+        lecturer_id=lecturer.id,
+        is_live=False,
+    )
+    db.add(virtual_class)
+    print(f"  Created demo upcoming class: {demo_title}")
+
+
 def seed_database():
     """Create tables and seed initial users and settings if they don't exist."""
     Base.metadata.create_all(bind=engine)
@@ -1022,6 +1167,8 @@ def seed_database():
         _seed_virtual_classes(db, units_by_title)
         _seed_assessment_questions(db, assessments_by_key)
         _seed_certificates(db, courses_by_title, units_by_title)
+        _seed_notifications(db)
+        _seed_upcoming_alert_demo(db, units_by_title)
 
         db.commit()
         print("Database seeded successfully.")

@@ -18,6 +18,7 @@ from app.models.study_material import StudyMaterial
 from app.models.assessment import Assessment
 from app.models.assessment_question import AssessmentQuestion
 from app.models.virtual_class import VirtualClass
+from app.models.certificate import Certificate
 from app.auth import hash_password
 
 
@@ -417,6 +418,26 @@ SEED_ASSESSMENT_QUESTIONS = [
                 "order": 2,
             },
         ],
+    },
+]
+
+
+SEED_CERTIFICATES = [
+    {
+        "student_email": "firststudent@makonline.com",
+        "certificate_type": "course_unit",
+        "unit_title": "Data Structures and Algorithms",
+        "certificate_number": "MAK-2026-DSA01",
+        "issue_date": date(2026, 5, 20),
+        "status": "active",
+    },
+    {
+        "student_email": "firststudent@makonline.com",
+        "certificate_type": "course",
+        "course_title": "Bachelor of Science in Computer Science",
+        "certificate_number": "MAK-2026-BSCS1",
+        "issue_date": date(2026, 6, 10),
+        "status": "active",
     },
 ]
 
@@ -901,6 +922,53 @@ def _seed_assessment_questions(
         print(f"  Seeded questions for: {data['assessment_title']}")
 
 
+def _seed_certificates(
+    db,
+    courses_by_title: dict[str, Course],
+    units_by_title: dict[str, CourseUnit],
+) -> None:
+    for data in SEED_CERTIFICATES:
+        student = db.query(User).filter(User.email == data["student_email"]).first()
+        if not student:
+            print(f"  Skipped certificate (student missing): {data['certificate_number']}")
+            continue
+
+        existing = (
+            db.query(Certificate)
+            .filter(Certificate.certificate_number == data["certificate_number"])
+            .first()
+        )
+        if existing:
+            print(f"  Certificate exists: {data['certificate_number']}")
+            continue
+
+        course = courses_by_title.get(data.get("course_title", ""))
+        unit = units_by_title.get(data.get("unit_title", ""))
+
+        if data["certificate_type"] == "course":
+            title = course.title if course else data.get("course_title", "")
+            course_id = course.id if course else None
+            course_unit_id = None
+        else:
+            title = unit.title if unit else data.get("unit_title", "")
+            course_id = course.id if course else (unit.course_id if unit else None)
+            course_unit_id = unit.id if unit else None
+
+        certificate = Certificate(
+            student_id=student.id,
+            certificate_type=data["certificate_type"],
+            course_id=course_id,
+            course_unit_id=course_unit_id,
+            certificate_number=data["certificate_number"],
+            student_name=student.name,
+            title=title,
+            issue_date=data["issue_date"],
+            status=data["status"],
+        )
+        db.add(certificate)
+        print(f"  Created certificate: {data['certificate_number']} → {student.email}")
+
+
 def seed_database():
     """Create tables and seed initial users and settings if they don't exist."""
     Base.metadata.create_all(bind=engine)
@@ -946,6 +1014,7 @@ def seed_database():
         assessments_by_key = _seed_assessments(db, units_by_title)
         _seed_virtual_classes(db, units_by_title)
         _seed_assessment_questions(db, assessments_by_key)
+        _seed_certificates(db, courses_by_title, units_by_title)
 
         db.commit()
         print("Database seeded successfully.")

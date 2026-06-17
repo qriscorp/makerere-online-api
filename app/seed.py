@@ -49,7 +49,7 @@ SEED_USERS = [
     },
     {
         "name": "Aisha Nansubuga",
-        "email": "firststudent@makonline.com",
+        "email": "polarismosh@gmail.com",
         "password": "123456789",
         "role": "student",
     },
@@ -164,7 +164,7 @@ SEED_INTAKES = [
 
 SEED_ENROLLMENTS = [
     {
-        "student_email": "firststudent@makonline.com",
+        "student_email": "polarismosh@gmail.com",
         "intake_name": "August 2026 Intake",
         "course_title": "Bachelor of Science in Computer Science",
         "status": "active",
@@ -200,7 +200,7 @@ SEED_TUTOR_PROFILES = [
 
 SEED_PAYMENTS = [
     {
-        "student_email": "firststudent@makonline.com",
+        "student_email": "polarismosh@gmail.com",
         "intake_name": "August 2026 Intake",
         "course_title": "Bachelor of Science in Computer Science",
         "amount": 3_500_000,
@@ -424,7 +424,7 @@ SEED_ASSESSMENT_QUESTIONS = [
 
 SEED_CERTIFICATES = [
     {
-        "student_email": "firststudent@makonline.com",
+        "student_email": "polarismosh@gmail.com",
         "certificate_type": "course_unit",
         "unit_title": "Data Structures and Algorithms",
         "certificate_number": "MAK-2026-DSA01",
@@ -432,7 +432,7 @@ SEED_CERTIFICATES = [
         "status": "active",
     },
     {
-        "student_email": "firststudent@makonline.com",
+        "student_email": "polarismosh@gmail.com",
         "certificate_type": "course",
         "course_title": "Bachelor of Science in Computer Science",
         "certificate_number": "MAK-2026-BSCS1",
@@ -975,6 +975,13 @@ def seed_database():
 
     db = SessionLocal()
     try:
+        # Migrate legacy test student email for existing databases
+        legacy_student = db.query(User).filter(User.email == "firststudent@makonline.com").first()
+        if legacy_student and not db.query(User).filter(User.email == "polarismosh@gmail.com").first():
+            legacy_student.email = "polarismosh@gmail.com"
+            db.flush()
+            print("  Migrated student email: firststudent@makonline.com → polarismosh@gmail.com")
+
         # Seed users
         for user_data in SEED_USERS:
             existing = db.query(User).filter(User.email == user_data["email"]).first()

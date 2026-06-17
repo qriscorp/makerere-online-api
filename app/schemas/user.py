@@ -18,6 +18,30 @@ class UserCreate(BaseModel):
     role: UserRole = UserRole.student
 
 
+class RegisterRequest(BaseModel):
+    """Public student self-registration (role is always student)."""
+
+    name: str
+    email: EmailStr
+    password: str
+
+
+class VerifyEmailRequest(BaseModel):
+    email: EmailStr
+    code: str
+
+
+class ResendVerificationRequest(BaseModel):
+    email: EmailStr
+
+
+class RegisterResponse(BaseModel):
+    message: str
+    email: str
+    verification_required: bool = True
+    dev_code: str | None = None
+
+
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
@@ -31,6 +55,26 @@ class ProfileUpdate(BaseModel):
 class PasswordChange(BaseModel):
     current_password: str
     new_password: str
+
+
+class ForgotPasswordRequest(BaseModel):
+    email: EmailStr
+
+
+class ResetPasswordRequest(BaseModel):
+    token: str
+    new_password: str
+
+
+class ForgotPasswordResponse(BaseModel):
+    message: str
+    reset_url: str | None = None
+    email_sent: bool = False
+
+
+class ResetTokenValidationResponse(BaseModel):
+    valid: bool
+    email: str | None = None
 
 
 class UserUpdate(BaseModel):

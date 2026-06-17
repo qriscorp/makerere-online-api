@@ -13,6 +13,7 @@ from app.schemas.tutoring import (
     TutorProfileResponse,
     TutorPublicResponse,
     TutorAdminResponse,
+    TutorAdminUpdate,
     TutoringBookingCreate,
     TutoringBookingResponse,
 )
@@ -116,6 +117,81 @@ def admin_list_all_tutors(
             )
         )
     return results
+
+
+def _profile_to_admin_response(profile: TutorProfile, name: str) -> TutorAdminResponse:
+    subjects = [s.strip() for s in profile.subjects.split(",") if s.strip()]
+    return TutorAdminResponse(
+        id=profile.id,
+        user_id=profile.user_id,
+        name=name,
+        subjects=subjects,
+        hourly_rate=profile.hourly_rate,
+        bio=profile.bio,
+        is_available=profile.is_available,
+        approval_status=profile.approval_status,
+        created_at=str(profile.created_at) if profile.created_at else None,
+    )
+
+
+@router.put("/admin/{profile_id}", response_model=TutorAdminResponse)
+def admin_update_tutor(
+    profile_id: str,
+    data: TutorAdminUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Admin updates a tutor profile."""
+    if current_user.role not in ("super_admin", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only admins can update tutor profiles",
+        )
+
+    profile = db.query(TutorProfile).filter(TutorProfile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tutor profile not found")
+
+    user = db.query(User).filter(User.id == profile.user_id).first()
+    if data.subjects is not None:
+        profile.subjects = ",".join(data.subjects)
+    if data.hourly_rate is not None:
+        profile.hourly_rate = data.hourly_rate
+    if data.bio is not None:
+        profile.bio = data.bio
+    if data.is_available is not None:
+        profile.is_available = data.is_available
+    if data.approval_status is not None:
+        profile.approval_status = data.approval_status
+
+    db.commit()
+    db.refresh(profile)
+    return _profile_to_admin_response(profile, user.name if user else "Unknown")
+
+
+@router.delete("/admin/{profile_id}", status_code=status.HTTP_204_NO_CONTENT)
+def admin_delete_tutor(
+    profile_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a tutor profile. Only super_admin can delete."""
+    if current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only super_admin can delete tutor profiles",
+        )
+
+    profile = db.query(TutorProfile).filter(TutorProfile.id == profile_id).first()
+    if not profile:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tutor profile not found")
+
+    db.query(TutoringBooking).filter(
+        TutoringBooking.tutor_profile_id == profile_id
+    ).delete()
+    db.delete(profile)
+    db.commit()
+    return None
 
 
 @router.put("/admin/{profile_id}/approve")

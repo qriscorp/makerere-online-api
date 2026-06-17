@@ -20,3 +20,8 @@ class EnrollmentResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+
+class EnrollmentUpdate(BaseModel):
+    status: str | None = None
+    payment_status: str | None = None

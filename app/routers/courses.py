@@ -63,6 +63,7 @@ def create_course(
         fee=course_data.fee,
         pass_mark=course_data.pass_mark,
         status=course_data.status,
+        image_url=course_data.image_url,
     )
     db.add(course)
     db.commit()

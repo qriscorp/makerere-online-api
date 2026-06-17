@@ -1,5 +1,5 @@
 """Seed the database with initial users, settings, and sample academic data on startup."""
-from datetime import date
+from datetime import date, datetime
 
 from app.database import SessionLocal, engine, Base
 from app.models.user import User
@@ -8,6 +8,10 @@ from app.models.course import Course
 from app.models.course_unit import CourseUnit
 from app.models.course_unit_link import CourseUnitLink
 from app.models.intake import Intake
+from app.models.enrollment import Enrollment
+from app.models.student_unit_enrollment import StudentUnitEnrollment
+from app.models.tutor_profile import TutorProfile
+from app.models.payment import Payment
 from app.models.system_setting import SystemSetting
 from app.auth import hash_password
 
@@ -32,8 +36,20 @@ SEED_USERS = [
         "role": "lecturer",
     },
     {
+        "name": "Dr. Grace Nakato",
+        "email": "secondlecturer@makonline.com",
+        "password": "123456789",
+        "role": "lecturer",
+    },
+    {
         "name": "Aisha Nansubuga",
         "email": "firststudent@makonline.com",
+        "password": "123456789",
+        "role": "student",
+    },
+    {
+        "name": "Brian Ssemwogerere",
+        "email": "secondstudent@makonline.com",
         "password": "123456789",
         "role": "student",
     },
@@ -136,6 +152,68 @@ SEED_INTAKES = [
             "Bachelor of Business Administration",
         ],
         "status": "active",
+    },
+]
+
+
+SEED_ENROLLMENTS = [
+    {
+        "student_email": "firststudent@makonline.com",
+        "intake_name": "August 2026 Intake",
+        "course_title": "Bachelor of Science in Computer Science",
+        "status": "active",
+        "payment_status": "completed",
+    },
+    {
+        "student_email": "secondstudent@makonline.com",
+        "intake_name": "January 2027 Intake",
+        "course_title": "Bachelor of Business Administration",
+        "status": "payment_pending",
+        "payment_status": "pending",
+    },
+]
+
+SEED_TUTOR_PROFILES = [
+    {
+        "lecturer_email": "firstlecturer@makonline.com",
+        "subjects": "Data Structures,Algorithms,Programming",
+        "hourly_rate": 75000,
+        "bio": "Experienced lecturer in computing and software engineering.",
+        "is_available": True,
+        "approval_status": "approved",
+    },
+    {
+        "lecturer_email": "secondlecturer@makonline.com",
+        "subjects": "Management,Business Strategy",
+        "hourly_rate": 65000,
+        "bio": "Business lecturer offering tutoring in management principles.",
+        "is_available": True,
+        "approval_status": "pending",
+    },
+]
+
+SEED_PAYMENTS = [
+    {
+        "student_email": "firststudent@makonline.com",
+        "intake_name": "August 2026 Intake",
+        "course_title": "Bachelor of Science in Computer Science",
+        "amount": 3_500_000,
+        "phone_number": "0772123456",
+        "carrier": "mtn",
+        "status": "completed",
+        "request_reference": "mak-seed-001",
+        "description": "Enrollment payment — BSc Computer Science",
+    },
+    {
+        "student_email": "secondstudent@makonline.com",
+        "intake_name": "January 2027 Intake",
+        "course_title": "Bachelor of Business Administration",
+        "amount": 3_200_000,
+        "phone_number": "0752987654",
+        "carrier": "airtel",
+        "status": "pending",
+        "request_reference": "mak-seed-002",
+        "description": "Enrollment payment — BBA (pending)",
     },
 ]
 
@@ -263,6 +341,154 @@ def _seed_intakes(db, courses_by_title: dict[str, Course]) -> None:
         print(f"  Created intake: {intake.name}")
 
 
+def _seed_enrollments(
+    db,
+    intakes_by_name: dict[str, Intake],
+    courses_by_title: dict[str, Course],
+) -> dict[str, Enrollment]:
+    enrollments_by_key: dict[str, Enrollment] = {}
+
+    for data in SEED_ENROLLMENTS:
+        student = db.query(User).filter(User.email == data["student_email"]).first()
+        intake = intakes_by_name.get(data["intake_name"])
+        course = courses_by_title.get(data["course_title"])
+        if not student or not intake or not course:
+            print(f"  Skipped enrollment (missing refs): {data['student_email']}")
+            continue
+
+        key = f"{student.id}:{intake.id}:{course.id}"
+        existing = (
+            db.query(Enrollment)
+            .filter(
+                Enrollment.student_id == student.id,
+                Enrollment.intake_id == intake.id,
+                Enrollment.course_id == course.id,
+            )
+            .first()
+        )
+        if existing:
+            enrollments_by_key[key] = existing
+            print(f"  Enrollment exists: {data['student_email']} → {data['course_title']}")
+            continue
+
+        enrollment = Enrollment(
+            student_id=student.id,
+            intake_id=intake.id,
+            course_id=course.id,
+            status=data["status"],
+            payment_status=data["payment_status"],
+        )
+        db.add(enrollment)
+        db.flush()
+        enrollments_by_key[key] = enrollment
+        print(f"  Created enrollment: {data['student_email']} → {data['course_title']}")
+
+        if data["status"] == "active":
+            links = (
+                db.query(CourseUnitLink)
+                .filter(CourseUnitLink.course_id == course.id)
+                .all()
+            )
+            for link in links:
+                db.add(
+                    StudentUnitEnrollment(
+                        student_id=student.id,
+                        enrollment_id=enrollment.id,
+                        course_unit_id=link.course_unit_id,
+                        course_id=course.id,
+                        intake_id=intake.id,
+                        status="active",
+                    )
+                )
+            intake.enrolled_count = (intake.enrolled_count or 0) + 1
+
+    return enrollments_by_key
+
+
+def _seed_tutor_profiles(db) -> None:
+    for data in SEED_TUTOR_PROFILES:
+        lecturer = db.query(User).filter(User.email == data["lecturer_email"]).first()
+        if not lecturer:
+            print(f"  Skipped tutor profile (lecturer missing): {data['lecturer_email']}")
+            continue
+
+        existing = (
+            db.query(TutorProfile)
+            .filter(TutorProfile.user_id == lecturer.id)
+            .first()
+        )
+        if existing:
+            print(f"  Tutor profile exists: {data['lecturer_email']}")
+            continue
+
+        profile = TutorProfile(
+            user_id=lecturer.id,
+            subjects=data["subjects"],
+            hourly_rate=data["hourly_rate"],
+            bio=data["bio"],
+            is_available=data["is_available"],
+            approval_status=data["approval_status"],
+        )
+        db.add(profile)
+        print(f"  Created tutor profile: {data['lecturer_email']} ({data['approval_status']})")
+
+
+def _seed_payments(
+    db,
+    enrollments_by_key: dict[str, Enrollment],
+) -> None:
+    for data in SEED_PAYMENTS:
+        student = db.query(User).filter(User.email == data["student_email"]).first()
+        intake = db.query(Intake).filter(Intake.name == data["intake_name"]).first()
+        course = db.query(Course).filter(Course.title == data["course_title"]).first()
+        if not student or not intake or not course:
+            print(f"  Skipped payment (missing refs): {data['request_reference']}")
+            continue
+
+        key = f"{student.id}:{intake.id}:{course.id}"
+        enrollment = enrollments_by_key.get(key)
+        if not enrollment:
+            enrollment = (
+                db.query(Enrollment)
+                .filter(
+                    Enrollment.student_id == student.id,
+                    Enrollment.intake_id == intake.id,
+                    Enrollment.course_id == course.id,
+                )
+                .first()
+            )
+
+        existing = (
+            db.query(Payment)
+            .filter(Payment.request_reference == data["request_reference"])
+            .first()
+        )
+        if existing:
+            print(f"  Payment exists: {data['request_reference']}")
+            continue
+
+        payment = Payment(
+            student_id=student.id,
+            enrollment_id=enrollment.id if enrollment else None,
+            amount=data["amount"],
+            phone_number=data["phone_number"],
+            carrier=data["carrier"],
+            payment_type="enrollment",
+            status=data["status"],
+            request_reference=data["request_reference"],
+            response_code="00" if data["status"] == "completed" else None,
+            response_message="Seeded payment" if data["status"] == "completed" else None,
+            description=data["description"],
+            completed_at=datetime.utcnow() if data["status"] == "completed" else None,
+        )
+        db.add(payment)
+        print(f"  Created payment: {data['request_reference']}")
+
+
+def _intakes_by_name(db) -> dict[str, Intake]:
+    return {i.name: i for i in db.query(Intake).all()}
+
+
 def seed_database():
     """Create tables and seed initial users and settings if they don't exist."""
     Base.metadata.create_all(bind=engine)
@@ -298,6 +524,11 @@ def seed_database():
         courses_by_title = _seed_courses(db, schools_by_code)
         _seed_course_units(db, courses_by_title)
         _seed_intakes(db, courses_by_title)
+
+        intakes_by_name = _intakes_by_name(db)
+        enrollments_by_key = _seed_enrollments(db, intakes_by_name, courses_by_title)
+        _seed_tutor_profiles(db)
+        _seed_payments(db, enrollments_by_key)
 
         db.commit()
         print("Database seeded successfully.")

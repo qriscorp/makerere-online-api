@@ -33,6 +33,12 @@ class PasswordChange(BaseModel):
     new_password: str
 
 
+class UserUpdate(BaseModel):
+    name: str | None = None
+    email: EmailStr | None = None
+    role: UserRole | None = None
+
+
 class UserResponse(BaseModel):
     id: str
     name: str

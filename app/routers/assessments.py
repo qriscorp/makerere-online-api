@@ -14,18 +14,56 @@ router = APIRouter(prefix="/api/assessments", tags=["Assessments"])
 
 @router.get("", response_model=List[AssessmentResponse])
 def list_assessments(
-    course_unit_id: str = Query(..., description="Filter by course unit ID"),
+    course_unit_id: str | None = Query(None, description="Filter by course unit ID"),
     current_user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """List assessments for a course unit. Any authenticated user can access."""
-    assessments = (
-        db.query(Assessment)
-        .filter(Assessment.course_unit_id == course_unit_id)
-        .order_by(Assessment.created_at.desc())
-        .all()
-    )
-    return assessments
+    """List assessments. Filter by unit, or return role-scoped lists when omitted."""
+    from app.models.course_unit import CourseUnit
+    from app.models.student_unit_enrollment import StudentUnitEnrollment
+
+    query = db.query(Assessment)
+
+    if course_unit_id:
+        query = query.filter(Assessment.course_unit_id == course_unit_id)
+    elif current_user.role == "lecturer":
+        unit_ids = [
+            u.id
+            for u in db.query(CourseUnit)
+            .filter(CourseUnit.lecturer_id == current_user.id)
+            .all()
+        ]
+        if not unit_ids:
+            return []
+        query = query.filter(Assessment.course_unit_id.in_(unit_ids))
+    elif current_user.role == "student":
+        unit_ids = [
+            ue.course_unit_id
+            for ue in db.query(StudentUnitEnrollment)
+            .filter(StudentUnitEnrollment.student_id == current_user.id)
+            .all()
+        ]
+        if not unit_ids:
+            return []
+        query = query.filter(Assessment.course_unit_id.in_(unit_ids))
+
+    return query.order_by(Assessment.created_at.desc()).all()
+
+
+@router.get("/{assessment_id}", response_model=AssessmentResponse)
+def get_assessment(
+    assessment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Get a single assessment by ID."""
+    assessment = db.query(Assessment).filter(Assessment.id == assessment_id).first()
+    if not assessment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Assessment not found",
+        )
+    return assessment
 
 
 @router.post("", response_model=AssessmentResponse, status_code=status.HTTP_201_CREATED)

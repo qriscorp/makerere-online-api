@@ -10,7 +10,7 @@ from app.models.enrollment import Enrollment
 from app.models.intake import Intake
 from app.models.course_unit_link import CourseUnitLink
 from app.models.student_unit_enrollment import StudentUnitEnrollment
-from app.schemas.enrollment import EnrollmentCreate, EnrollmentResponse
+from app.schemas.enrollment import EnrollmentCreate, EnrollmentResponse, EnrollmentUpdate
 
 router = APIRouter(prefix="/api/enrollments", tags=["Enrollments"])
 
@@ -113,6 +113,54 @@ def create_enrollment(
             status="active",
         )
         db.add(unit_enrollment)
+
+    db.commit()
+    db.refresh(enrollment)
+    return enrollment
+
+
+@router.put("/{enrollment_id}", response_model=EnrollmentResponse)
+def update_enrollment(
+    enrollment_id: str,
+    data: EnrollmentUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update enrollment status. Admins and super admins only."""
+    if current_user.role not in ("super_admin", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+
+    enrollment = db.query(Enrollment).filter(Enrollment.id == enrollment_id).first()
+    if not enrollment:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Enrollment not found",
+        )
+
+    if data.status is None and data.payment_status is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update",
+        )
+
+    old_status = enrollment.status
+    intake = db.query(Intake).filter(Intake.id == enrollment.intake_id).first()
+
+    if data.status is not None:
+        enrollment.status = data.status
+    if data.payment_status is not None:
+        enrollment.payment_status = data.payment_status
+
+    # Sync intake enrolled_count when status changes to/from active
+    if intake and old_status != enrollment.status:
+        if old_status == "active" and enrollment.status != "active":
+            if intake.enrolled_count > 0:
+                intake.enrolled_count -= 1
+        elif old_status != "active" and enrollment.status == "active":
+            intake.enrolled_count += 1
 
     db.commit()
     db.refresh(enrollment)

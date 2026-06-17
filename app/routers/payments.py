@@ -62,6 +62,24 @@ class PaymentStatusResponse(BaseModel):
     response_message: str | None
 
 
+class PaymentUpdate(BaseModel):
+    status: str | None = None
+    description: str | None = None
+
+
+class SystemWalletResponse(BaseModel):
+    balance: float
+    currency: str
+    total_received: float
+    total_withdrawn: float
+
+
+class LecturerWalletResponse(BaseModel):
+    balance: float
+    currency: str
+    total_earned: float
+
+
 # ─── Endpoints ───────────────────────────────────────────────────────────────
 
 
@@ -101,6 +119,87 @@ def list_payments(
         )
         for p in payments
     ]
+
+
+@router.get("/system-wallet", response_model=SystemWalletResponse)
+def get_system_wallet(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """System wallet summary derived from completed payments."""
+    if current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only super_admin can view the system wallet",
+        )
+
+    completed = (
+        db.query(Payment)
+        .filter(Payment.status == "completed")
+        .all()
+    )
+    total_received = sum(p.amount for p in completed)
+    return SystemWalletResponse(
+        balance=total_received,
+        currency="UGX",
+        total_received=total_received,
+        total_withdrawn=0.0,
+    )
+
+
+@router.get("/lecturer-wallet", response_model=LecturerWalletResponse)
+def get_lecturer_wallet(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Lecturer wallet summary from completed tutoring bookings."""
+    if current_user.role not in ("lecturer", "super_admin", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only lecturers can view their wallet",
+        )
+
+    from app.models.tutor_profile import TutorProfile
+    from app.models.tutoring_booking import TutoringBooking
+
+    profile = db.query(TutorProfile).filter(TutorProfile.user_id == current_user.id).first()
+    if not profile:
+        return LecturerWalletResponse(balance=0.0, currency="UGX", total_earned=0.0)
+
+    bookings = (
+        db.query(TutoringBooking)
+        .filter(
+            TutoringBooking.tutor_profile_id == profile.id,
+            TutoringBooking.status == "completed",
+        )
+        .all()
+    )
+    total_earned = sum(b.total_cost for b in bookings)
+    return LecturerWalletResponse(
+        balance=total_earned,
+        currency="UGX",
+        total_earned=total_earned,
+    )
+
+
+def _payment_to_response(payment: Payment) -> PaymentResponse:
+    return PaymentResponse(
+        id=payment.id,
+        student_id=payment.student_id,
+        enrollment_id=payment.enrollment_id,
+        amount=payment.amount,
+        currency=payment.currency,
+        phone_number=payment.phone_number,
+        carrier=payment.carrier,
+        payment_type=payment.payment_type,
+        status=payment.status,
+        request_reference=payment.request_reference,
+        response_code=payment.response_code,
+        response_message=payment.response_message,
+        description=payment.description,
+        created_at=str(payment.created_at),
+        completed_at=str(payment.completed_at) if payment.completed_at else None,
+    )
 
 
 @router.post("/initiate", response_model=PaymentResponse)
@@ -264,3 +363,102 @@ def get_payment_status(
         response_code=payment.response_code,
         response_message=payment.response_message,
     )
+
+
+@router.put("/{payment_id}", response_model=PaymentResponse)
+def update_payment(
+    payment_id: str,
+    data: PaymentUpdate,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Update payment status or description. Admins only."""
+    if current_user.role not in ("super_admin", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+
+    if data.status is None and data.description is None:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="No fields to update",
+        )
+
+    old_status = payment.status
+    if data.status is not None:
+        payment.status = data.status
+        if data.status == "completed" and not payment.completed_at:
+            payment.completed_at = datetime.utcnow()
+    if data.description is not None:
+        payment.description = data.description
+
+    # Activate linked enrollment when payment marked completed
+    if (
+        payment.enrollment_id
+        and old_status != "completed"
+        and payment.status == "completed"
+    ):
+        enrollment = (
+            db.query(Enrollment)
+            .filter(Enrollment.id == payment.enrollment_id)
+            .first()
+        )
+        if enrollment and enrollment.payment_status != "completed":
+            enrollment.status = "active"
+            enrollment.payment_status = "completed"
+            from app.models.intake import Intake
+            intake = db.query(Intake).filter(Intake.id == enrollment.intake_id).first()
+            if intake:
+                intake.enrolled_count += 1
+
+    db.commit()
+    db.refresh(payment)
+    return _payment_to_response(payment)
+
+
+@router.put("/{payment_id}/complete", response_model=PaymentResponse)
+def complete_payment_record(
+    payment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Mark a payment as completed (admin manual completion)."""
+    if current_user.role not in ("super_admin", "admin"):
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Not enough permissions",
+        )
+
+    return update_payment(
+        payment_id,
+        PaymentUpdate(status="completed"),
+        current_user,
+        db,
+    )
+
+
+@router.delete("/{payment_id}", status_code=status.HTTP_204_NO_CONTENT)
+def delete_payment(
+    payment_id: str,
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Delete a payment record. Only super_admin can delete."""
+    if current_user.role != "super_admin":
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Only super_admin can delete payments",
+        )
+
+    payment = db.query(Payment).filter(Payment.id == payment_id).first()
+    if not payment:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Payment not found")
+
+    db.delete(payment)
+    db.commit()
+    return None

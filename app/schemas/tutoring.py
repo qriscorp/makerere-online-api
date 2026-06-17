@@ -46,6 +46,14 @@ class TutorAdminResponse(BaseModel):
     created_at: Optional[str] = None
 
 
+class TutorAdminUpdate(BaseModel):
+    subjects: Optional[List[str]] = None
+    hourly_rate: Optional[float] = None
+    bio: Optional[str] = None
+    is_available: Optional[bool] = None
+    approval_status: Optional[str] = None
+
+
 class TutoringBookingCreate(BaseModel):
     tutor_profile_id: str
     subject: str
